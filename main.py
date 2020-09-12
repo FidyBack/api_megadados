@@ -70,14 +70,17 @@ def update_item(item_id: int, amount: int):
         raise HTTPException(status_code = 404, detail = "Item Not Found")
 
 
-@app.put("items/buy/{item_id}")
+@app.put("/items/buy/{item_id}")
 def buy_item(item_id: int):
     """
     Update item from unpaid to paid
     """
     if (item_id in database):
-        database[item_id].bought = True
-        raise HTTPException(status_code = 200, detail = "Item bought succesfully")
+        if (database[item_id].bought == True):
+            raise HTTPException(status_code = 409, detail = "Item already bought")
+        else:
+            database[item_id].bought = True
+            raise HTTPException(status_code = 200, detail = "Item bought succesfully")
     else:
         raise HTTPException(status_code = 404, detail = "Item Not Found")
 
