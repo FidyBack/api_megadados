@@ -75,7 +75,7 @@ def test_read_item_returns_item():
     response_delete_alpha = client.delete(f"/task/{response_alpha.json()}")
     assert response_delete_alpha.status_code == 200
 
-def test_update_item_returns_item():
+def test_put_item_returns_item():
     response_alpha = client.post('/task', 
     json={
   "description": "Buy baby diapers",
@@ -115,4 +115,32 @@ def test_delete_item_returns_success():
 
     response_delete_alpha = client.delete(f"/task/{response_alpha.json()}")
     assert response_delete_alpha.status_code == 200
+
+def test_patch_item_returns_item():
+    response_alpha = client.post('/task', 
+    json={
+  "description": "Buy baby diapers",
+  "completed": False
+    }
+    )
+    assert response_alpha.status_code == 200
+
     
+    response_patch = client.patch(f"/task/{response_alpha.json()}",json={
+        "description": "Buy baby diapers",
+        "completed": True
+        }
+        )
+
+    assert response_patch.status_code == 200
+
+    response_get = client.get(f"/task/{response_alpha.json()}")
+
+    assert response_get.status_code == 200
+    assert response_get.json()=={
+        "description": "Buy baby diapers",
+        "completed": True
+        }
+    
+    response_delete_alpha = client.delete(f"/task/{response_alpha.json()}")
+    assert response_delete_alpha.status_code == 200  
