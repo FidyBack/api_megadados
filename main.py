@@ -1,94 +1,139 @@
-from typing import Optional
+# pylint: disable=missing-module-docstring, missing-function-docstring, missing-class-docstring
+import uuid
+
+from typing import Optional, Dict
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-
-app = FastAPI()
-
-class Food(BaseModel):
-    name: str
-    quantity: int
-    bought: bool = False
-
-database={
-    1:Food(name= "pasta", quantity=50, bought=1),
-    2:Food(name= "pineaple", quantity=100, bought=0)
-}
-
-@app.get("/items")
-def read_root():
-    """
-    Return all itens
-    """
-    return database
+from pydantic import BaseModel, Field
 
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int):
-    """
-    Return an specific item from the database
-    """
-    if (item_id in database):
-        return database[item_id]
-    else:
-        raise HTTPException(status_code = 404, detail = "Item Not Found")
+# pylint: disable=too-few-public-methods
+class Task(BaseModel):
+    description: Optional[str] = Field(
+        'no description',
+        title='Task description',
+        max_length=1024,
+    )
+    completed: Optional[bool] = Field(
+        False,
+        title='Shows whether the task was completed',
+    )
+
+    class Config:
+        schema_extra = {
+            'example': {
+                'description': 'Buy baby diapers',
+                'completed': False,
+            }
+        }
 
 
-@app.get("/items/bought/{paid}")
-def read_bought_item(paid: bool):
-    """
-    Return itens with status 'bouht = True'
-    """
-    data={}
-    for i in database:
-        if (database[i].bought==paid):
-            data[i]=database[i]
-            return data
+tags_metadata = [
+    {
+        'name': 'task',
+        'description': 'Operations related to tasks.',
+    },
+]
+
+app = FastAPI(
+    title='Task list',
+    description='Task-list project for the **Megadados** course',
+    openapi_tags=tags_metadata,
+)
+
+tasks = {}
 
 
-@app.post("/items/add/{item_id}")
-def add_item(item_id: int, item: Food):
-    """
-    Create new itens in the database
-    """
-    if not(item_id in database):
-        database[item_id] = item
-        raise HTTPException(status_code = 201, detail = "Item created succesfully")
-    else:
-        raise HTTPException(status_code = 409, detail = "ID already exist")
+@app.get(
+    '/task',
+    tags=['task'],
+    summary='Reads task list',
+    description='Reads the whole task list.',
+    response_model=Dict[uuid.UUID, Task],
+)
+async def read_tasks(completed: bool = None):
+    if completed is None:
+        return tasks
+    return {
+        uuid_: item
+        for uuid_, item in tasks.items() if item.completed == completed
+    }
 
 
-@app.put("/items/update/{item_id}")
-def update_item(item_id: int, amount: int):
-    """
-    Update item in the database
-    """
-    if (item_id in database):
-        database[item_id].quantity = amount
-        raise HTTPException(status_code = 200, detail = "Item updated succesfully")
-    else:
-        raise HTTPException(status_code = 404, detail = "Item Not Found")
+@app.post(
+    '/task',
+    tags=['task'],
+    summary='Creates a new task',
+    description='Creates a new task and returns its UUID.',
+    response_model=uuid.UUID,
+)
+async def create_task(item: Task):
+    uuid_ = uuid.uuid4()
+    tasks[uuid_] = item
+    return uuid_
 
 
-@app.put("/items/buy/{item_id}")
-def buy_item(item_id: int):
-    """
-    Update item from unpaid to paid
-    """
-    if (item_id in database):
-        if (database[item_id].bought == True):
-            raise HTTPException(status_code = 409, detail = "Item already bought")
-        else:
-            database[item_id].bought = True
-            raise HTTPException(status_code = 200, detail = "Item bought succesfully")
-    else:
-        raise HTTPException(status_code = 404, detail = "Item Not Found")
+@app.get(
+    '/task/{uuid_}',
+    tags=['task'],
+    summary='Reads task',
+    description='Reads task from UUID.',
+    response_model=Task,
+)
+async def read_task(uuid_: uuid.UUID):
+    try:
+        return tasks[uuid_]
+    except KeyError as exception:
+        raise HTTPException(
+            status_code=404,
+            detail='Task not found',
+        ) from exception
 
 
-@app.delete("/items/delete/{item_id}")
-def delete_item(item_id:int):
-    if (item_id in database):
-        del database[item_id]
-        raise HTTPException(status_code = 200, detail = "Item removed succesfully")
-    else:
-        raise HTTPException(status_code = 404, detail = "Item Not Found")
+@app.put(
+    '/task/{uuid_}',
+    tags=['task'],
+    summary='Replaces a task',
+    description='Replaces a task identified by its UUID.',
+)
+async def replace_task(uuid_: uuid.UUID, item: Task):
+    try:
+        tasks[uuid_] = item
+    except KeyError as exception:
+        raise HTTPException(
+            status_code=404,
+            detail='Task not found',
+        ) from exception
+
+
+@app.patch(
+    '/task/{uuid_}',
+    tags=['task'],
+    summary='Alters task',
+    description='Alters a task identified by its UUID',
+)
+async def alter_task(uuid_: uuid.UUID, item: Task):
+    try:
+        update_data = item.dict(exclude_unset=True)
+        tasks[uuid_] = tasks[uuid_].copy(update=update_data)
+    except KeyError as exception:
+        raise HTTPException(
+            status_code=404,
+            detail='Task not found',
+        ) from exception
+
+
+@app.delete(
+    '/task/{uuid_}',
+    tags=['task'],
+    summary='Deletes task',
+    description='Deletes a task identified by its UUID',
+)
+async def remove_task(uuid_: uuid.UUID):
+    try:
+        del tasks[uuid_]
+    except KeyError as exception:
+        raise HTTPException(
+            status_code=404,
+            detail='Task not found',
+        ) from exception
