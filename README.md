@@ -1,4 +1,8 @@
+# Megadados2020-2-Projeto1
+Projeto 1 da disciplina Megadados - repositorio para alunos
 
-# aps_megadados
+Para executar o serviço rode
 
-Esta aps teve como intuito fazer um projeto simples de CRUD com o auxílio da FastApi. 
+```
+uvicorn tasklist.main:app --reload
+```
